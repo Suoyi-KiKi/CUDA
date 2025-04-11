@@ -47,7 +47,7 @@ void de_clutter_rsvd(cuFloatComplex* d_in, cuFloatComplex* d_out, int m, int n, 
     cudaMalloc(&d_S, k * sizeof(float));
 
     size_t d_ws_size, h_ws_size;
-    PROFILE_START(cusolverDnXgesvdr_func);
+    //PROFILE_START(cusolverDnXgesvdr_func);
     cusolverDnXgesvdr_bufferSize(cusolverH, params, 'S', 'S', m, m, k, p, niters, CUDA_C_32F, d_Rc, m, CUDA_R_32F, d_S, CUDA_C_32F, d_U, m, CUDA_C_32F, d_Vt, m, CUDA_C_32F, &d_ws_size, &h_ws_size);
 
     void* d_work;
@@ -57,9 +57,9 @@ void de_clutter_rsvd(cuFloatComplex* d_in, cuFloatComplex* d_out, int m, int n, 
     cudaMalloc(&d_info, sizeof(int));
 
     cusolverDnXgesvdr(cusolverH, params, 'S', 'S', m, m, k, p, niters, CUDA_C_32F, d_Rc, m, CUDA_R_32F, d_S, CUDA_C_32F, d_U, m, CUDA_C_32F, d_Vt, m, CUDA_C_32F, d_work, d_ws_size, h_work, h_ws_size, d_info);
-    PROFILE_END(cusolverDnXgesvdr_func, "rsvd分解");
+    //PROFILE_END(cusolverDnXgesvdr_func, "    rsvd分解");
     // 3. 使用 cublasCgeam 进行共轭转置（V^H = conj(V)^T）
-    PROFILE_START(cublasCgeam_func);
+    //PROFILE_START(cublasCgeam_func);
     cublasCgeam(
         cublasH,
         CUBLAS_OP_C,  // 共轭转置 (conj-transpose)
@@ -75,9 +75,9 @@ void de_clutter_rsvd(cuFloatComplex* d_in, cuFloatComplex* d_out, int m, int n, 
         d_Vh,  // 输出的 V^H (k×m)
         k  // ldc = V^H 的 leading dimension
     );
-    PROFILE_END(cublasCgeam_func, "计算共轭转置");
+    //PROFILE_END(cublasCgeam_func, "    计算共轭转置");
     // 4. 计算 Pc = sum(U(:,1:N)*V(:,1:N)')（m x m）
-    PROFILE_START(sum);
+    //PROFILE_START(sum);
     for (int i = 0; i < N; ++i) {
         // U的第i列 (m x 1) 与 Vt的第i行 (1 x n) 的外积（需要调整内存访问）
         cublasCgeru(
@@ -85,10 +85,10 @@ void de_clutter_rsvd(cuFloatComplex* d_in, cuFloatComplex* d_out, int m, int n, 
             d_Vh + i * k, k,  // Vt的第i行（跨度为k）
             d_Pc, m);
     }
-    PROFILE_END(sum, "计算Pc");
+    //PROFILE_END(sum, "    计算Pc");
 
     // 5. 计算 P = I - Pc*Pc'（m x m）
-    PROFILE_START(P);
+    //PROFILE_START(P);
     // 计算 Pc*Pc'
     cublasCgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_C, m, m, m, &alpha, d_Pc, m, d_Pc, m, &beta, d_P, m);
 
@@ -100,11 +100,11 @@ void de_clutter_rsvd(cuFloatComplex* d_in, cuFloatComplex* d_out, int m, int n, 
     // P = I - Pc*Pc'
     cuFloatComplex neg_alpha = make_cuFloatComplex(-1.0f, 0.0f);
     cublasCaxpy(cublasH, m * m, &neg_alpha, d_P, 1, d_I, 1);
-    PROFILE_END(P, "计算P");
+    //PROFILE_END(P, "    计算P");
     // 6. 计算 X = P*Y（m x n）
-    PROFILE_START(X);
+    //PROFILE_START(X);
     cublasCgemm(cublasH, CUBLAS_OP_N, CUBLAS_OP_N, m, n, m, &alpha, d_I, m, d_in, m, &beta, d_out, m);
-    PROFILE_END(X, "计算X");
+    //PROFILE_END(X, "    计算X");
     // 清理资源
     cudaFree(d_fc);
     cudaFree(d_work);

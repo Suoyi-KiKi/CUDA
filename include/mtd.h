@@ -14,7 +14,7 @@ class FFTShift2DHandler {
     private:
         int Q, SampleNumber;
         cuFloatComplex* d_data;
-        cuFloatComplex* d_abs_result;
+        //cuFloatComplex* d_abs_result;
         // Disable copying and assignment
         FFTShift2DHandler(const FFTShift2DHandler&) = delete;
         FFTShift2DHandler& operator=(const FFTShift2DHandler&) = delete;

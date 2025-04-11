@@ -34,9 +34,9 @@ void ReadMatlabBin(const std::string& filename, cuFloatComplex* data, int rows, 
     }
 
     // 验证输出
-    std::cout << "First 3 elements (MATLAB compatible):\n";
+    std::cout << "BIn文件前三个读取数据为:\n";
     for (int i = 0; i < 3; ++i) {
-      printf("[%d] (%.6f, %.6f)\n", i, data[i].x, data[i].y);
+      printf("    [%d] (%.6f, %.6f)\n", i, data[i].x, data[i].y);
     }
 }
 
@@ -119,4 +119,69 @@ __global__ void convertHalfToFloat_Optimized(__half* in, cuFloatComplex* out, in
         // 写入 cuFloatComplex
         out[idx] = make_cuFloatComplex(f_val.x, f_val.y);
     }
+}
+
+
+// 读取复数向量的函数
+Eigen::VectorXcf readComplexVectorFromBin(const std::string& filePath, int size) {
+    Eigen::VectorXcf vec(size);
+    std::ifstream file(filePath, std::ios::binary);
+
+    if (!file) {
+        std::cerr << "无法打开文件: " << filePath << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // 读取实部
+    for (int i = 0; i < size; ++i) {
+        float realPart;
+        file.read(reinterpret_cast<char*>(&realPart), sizeof(float));
+        vec(i).real(realPart);
+    }
+
+    // 读取虚部
+    for (int i = 0; i < size; ++i) {
+        float imagPart;
+        file.read(reinterpret_cast<char*>(&imagPart), sizeof(float));
+        vec(i).imag(imagPart);
+    }
+
+    file.close();
+    return vec;
+}
+
+void saveTensorToBinaryFile(const Eigen::Tensor<Complex, 3>& tensor, const std::string& filePath) {
+    // 打开二进制文件用于写入
+    std::ofstream file(filePath, std::ios::binary);
+    if (!file) {
+        std::cerr << "Error opening file for writing: " << filePath << std::endl;
+        return;
+    }
+
+    // 获取矩阵的维度
+    int M = tensor.dimension(0);
+    int N = tensor.dimension(1);
+    int P = tensor.dimension(2);
+
+    // 计算总元素个数
+    int numElements = M * N * P;
+
+    // 读取实部和虚部到临时数组
+    std::vector<float> realPart(numElements);
+    std::vector<float> imagPart(numElements);
+
+    // 分别提取实部和虚部
+    for (int i = 0; i < numElements; ++i) {
+        realPart[i] = tensor.data()[i].real();
+        imagPart[i] = tensor.data()[i].imag();
+    }
+
+    // 写入实部
+    file.write(reinterpret_cast<const char*>(realPart.data()), numElements * sizeof(float));
+
+    // 写入虚部
+    file.write(reinterpret_cast<const char*>(imagPart.data()), numElements * sizeof(float));
+
+    // 关闭文件
+    file.close();
 }
